@@ -29,7 +29,38 @@ bool g_update_available = false;
 }
 
 // static
-void AutoUpdater::SetFeedURL(const std::string& feed, const std::string& authToken) {
+void AutoUpdater::SetFeedURL(const std::string& feed) {
+  if (g_updater == nil) {
+    Delegate* delegate = GetDelegate();
+    if (!delegate)
+      return;
+
+    // Initialize the SQRLUpdater.
+    NSURL* url = [NSURL URLWithString:base::SysUTF8ToNSString(feed)];
+    NSURLRequest* urlRequest = [NSURLRequest requestWithURL:url];
+
+    @try {
+      g_updater = [[SQRLUpdater alloc] initWithUpdateRequest:urlRequest];
+    } @catch (NSException* error) {
+      delegate->OnError(base::SysNSStringToUTF8(error.reason));
+      return;
+    }
+
+    [[g_updater rac_valuesForKeyPath:@"state" observer:g_updater]
+      subscribeNext:^(NSNumber *stateNumber) {
+        int state = [stateNumber integerValue];
+        // Dispatching the event on main thread.
+        dispatch_async(dispatch_get_main_queue(), ^{
+          if (state == SQRLUpdaterStateCheckingForUpdate)
+            delegate->OnCheckingForUpdate();
+          else if (state == SQRLUpdaterStateDownloadingUpdate)
+            delegate->OnUpdateAvailable();
+        });
+    }];
+  }
+}
+
+void AutoUpdater::SetAuthenticatedFeedURL(const std::string& feed, const std::string& authHeader) {
   if (g_updater != nil) {
     [g_updater release];
     g_updater = nil;
@@ -39,11 +70,11 @@ void AutoUpdater::SetFeedURL(const std::string& feed, const std::string& authTok
   if (!delegate)
     return;
 
-  // Initialize the SQRLUpdater.
+  // Initialize the SQRLUpdater with authorization header set
   NSURL* url = [NSURL URLWithString:base::SysUTF8ToNSString(feed)];
-  NSString *authHeader =[NSString stringWithFormat:@"Bearer %@", base::SysUTF8ToNSString(authToken)];
+  NSString *authHttpHeader = base::SysUTF8ToNSString(authHeader);
   NSMutableURLRequest* urlRequest = [NSMutableURLRequest requestWithURL:url];
-  [urlRequest addValue:authHeader forHTTPHeaderField:@"Authorization"];
+  [urlRequest addValue:authHttpHeader forHTTPHeaderField:@"Authorization"];
 
   @try {
     g_updater = [[SQRLUpdater alloc] initWithUpdateRequest:urlRequest];
