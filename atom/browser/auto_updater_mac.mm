@@ -60,6 +60,42 @@ void AutoUpdater::SetFeedURL(const std::string& feed) {
   }
 }
 
+void AutoUpdater::SetAuthenticatedFeedURL(const std::string& feed, const std::string& authHeader) {
+  if (g_updater != nil) {
+    [g_updater release];
+    g_updater = nil;
+  }
+  
+  Delegate* delegate = GetDelegate();
+  if (!delegate)
+    return;
+
+  // Initialize the SQRLUpdater with authorization header set
+  NSURL* url = [NSURL URLWithString:base::SysUTF8ToNSString(feed)];
+  NSString *authHttpHeader = base::SysUTF8ToNSString(authHeader);
+  NSMutableURLRequest* urlRequest = [NSMutableURLRequest requestWithURL:url];
+  [urlRequest addValue:authHttpHeader forHTTPHeaderField:@"Authorization"];
+
+  @try {
+    g_updater = [[SQRLUpdater alloc] initWithUpdateRequest:urlRequest];
+  } @catch (NSException* error) {
+    delegate->OnError(base::SysNSStringToUTF8(error.reason));
+    return;
+  }
+
+  [[g_updater rac_valuesForKeyPath:@"state" observer:g_updater]
+    subscribeNext:^(NSNumber *stateNumber) {
+      int state = [stateNumber integerValue];
+      // Dispatching the event on main thread.
+      dispatch_async(dispatch_get_main_queue(), ^{
+        if (state == SQRLUpdaterStateCheckingForUpdate)
+          delegate->OnCheckingForUpdate();
+        else if (state == SQRLUpdaterStateDownloadingUpdate)
+          delegate->OnUpdateAvailable();
+      });
+  }];
+}
+
 // static
 void AutoUpdater::CheckForUpdates() {
   Delegate* delegate = GetDelegate();
