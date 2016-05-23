@@ -103,6 +103,7 @@ void AutoUpdater::BuildPrototype(
     v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> prototype) {
   mate::ObjectTemplateBuilder(isolate, prototype)
       .SetMethod("setFeedURL", &auto_updater::AutoUpdater::SetFeedURL)
+      .SetMethod("setAuthenticatedFeedURL", &auto_updater::AutoUpdater::SetAuthenticatedFeedURL)
       .SetMethod("checkForUpdates", &auto_updater::AutoUpdater::CheckForUpdates)
       .SetMethod("quitAndInstall", &AutoUpdater::QuitAndInstall);
 }
