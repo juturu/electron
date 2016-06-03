@@ -30,7 +30,7 @@ if (!process.mas) {
           assert.equal(message, 'Could not get code signature for running application')
           done()
         })
-        autoUpdater.setFeedURL('')
+        autoUpdater.SetAuthenticatedFeedURL('', '')
       })
     })
   })
