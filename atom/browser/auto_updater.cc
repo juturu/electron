@@ -20,6 +20,9 @@ void AutoUpdater::SetDelegate(Delegate* delegate) {
 void AutoUpdater::SetFeedURL(const std::string& url) {
 }
 
+void AutoUpdater::SetAuthenticatedFeedURL(const std::string& feed, const std::string& authHeader) {
+}
+
 void AutoUpdater::CheckForUpdates() {
 }
 
